@@ -1,56 +1,78 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+name: Build Cross-Platform Executables
 
-name: Python application
 on:
+  workflow_dispatch:          # 手动触发
+    inputs:
+      version:
+        description: "v1.0.0"
+        required: true
   push:
     tags:
-      - 'v*' # 只要推送以 v 开头的 Tag（如 v1.0.0, v2.1）就会触发
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+      - 'v*'                  # 推送标签时自动触发
 
 permissions:
-  contents: write # 修复：赋予写入权限以支持发布 Release
+  contents: write
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # 同时在三个原生系统上运行构建任务
         os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Check out repository
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11' # 指定你的 Python 版本
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller
-        python -c "import os; os.system('pip install -r requirements.txt') if os.path.exists('requirements.txt') else None"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
 
-    - name: Build executable (Linux/macOS)
-      if: runner.os != 'Windows'
-      run: |
-        pyinstaller --onefile pdf2img.py
+      - name: Build executable
+        run: |
+          pyinstaller --onefile --clean --noconfirm pdf2img.py
 
-    - name: Build executable (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        pyinstaller --onefile --noconsole pdf2img.py
+      - name: Rename output
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            mv dist/main.exe dist/myapp-windows.exe
+          elif [ "$RUNNER_OS" == "Linux" ]; then
+            mv dist/main dist/myapp-linux
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            mv dist/main dist/myapp-macos
+          fi
 
-    - name: Upload Release Assets
-      uses: softprops/action-gh-release@v1
-      with:
-        files: dist/*
-      env:
-        # 修复：补齐右括号 }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: myapp-${{ matrix.os }}
+          path: dist/myapp-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Make files executable
+        run: chmod +x myapp-* || true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          files: |
+            myapp-windows.exe
+            myapp-linux
+            myapp-macos
