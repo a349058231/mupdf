@@ -40,12 +40,12 @@ jobs:
     - name: Build executable (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
-        pyinstaller --onefile main.py
+        pyinstaller --onefile pdf2img.py
 
     - name: Build executable (Windows)
       if: runner.os == 'Windows'
       run: |
-        pyinstaller --onefile --noconsole main.py
+        pyinstaller --onefile --noconsole pdf2img.py
 
     - name: Upload Release Assets
       uses: softprops/action-gh-release@v1
