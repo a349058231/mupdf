@@ -2,9 +2,10 @@
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Python application
-
 on:
   push:
+    tags:
+      - 'v*' # 只要推送以 v 开头的 Tag（如 v1.0.0, v2.1）就会触发
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
