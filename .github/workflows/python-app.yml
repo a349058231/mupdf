@@ -34,8 +34,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller
-        # 修复：补全 Bash if 语句结尾的 fi
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        python -c "import os; os.system('pip install -r requirements.txt') if os.path.exists('requirements.txt') else None"
 
     - name: Build executable (Linux/macOS)
       if: runner.os != 'Windows'
